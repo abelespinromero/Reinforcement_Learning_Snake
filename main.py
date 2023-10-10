@@ -14,7 +14,7 @@ def main():
         scores.append(score)
         q_learner.save_q_values()
         
-    plt.plot(range(1, 101), scores)
+    plt.plot(range(0, n_episodes), scores)
     plt.xlabel("Episode")
     plt.ylabel("Score")
     plt.show()

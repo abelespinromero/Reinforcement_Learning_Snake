@@ -20,8 +20,8 @@ class QLearner:
         with open("qvalues.json", "w") as f:
             json.dump(self.q_values, f)
 
-    def state_to_str(self, snake, food):
-        return str((snake[0], food))
+    def state_to_str(self, snake, food, direction):
+        return str((snake[0], food, direction))
 
     def select_action(self, snake, food):
         state_str = self.state_to_str(snake, food)
