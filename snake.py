@@ -1,6 +1,7 @@
 
 import pygame
 import random
+import numpy as np
 
 def play_game(q_learning=False, action=None):
     pygame.init()
@@ -21,30 +22,29 @@ def play_game(q_learning=False, action=None):
     food_pos = [random.randrange(1, (width//10)) * 10, random.randrange(1, (height//10)) * 10]
     food = pygame.Surface((10, 10))
     food.fill(red)
-    score = 0
     
+    score = 0
     font = pygame.font.SysFont("comicsansms", 35)
     
-    done = False
-    reward = 0
-    
-    while not done:
-        if q_learning:
+    if q_learning:
+        if action:
             direction = action
-        else:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    done = True
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_UP:
-                        direction = "UP"
-                    if event.key == pygame.K_DOWN:
-                        direction = "DOWN"
-                    if event.key == pygame.K_LEFT:
-                        direction = "LEFT"
-                    if event.key == pygame.K_RIGHT:
-                        direction = "RIGHT"
-                        
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    direction = "UP"
+                if event.key == pygame.K_DOWN:
+                    direction = "DOWN"
+                if event.key == pygame.K_LEFT:
+                    direction = "LEFT"
+                if event.key == pygame.K_RIGHT:
+                    direction = "RIGHT"
+                    
         new_head = list(snake_pos[0])
         
         if direction == "UP":
@@ -58,21 +58,23 @@ def play_game(q_learning=False, action=None):
 
         snake_pos.insert(0, new_head)
         
+        reward = 0  # Initialize reward
+        
         if snake_pos[0] == food_pos:
             score += 1
-            reward = 10  # Setting a positive reward for eating the food
+            reward = 10  # Positive reward for eating the food
             food_pos = [random.randrange(1, (width//10)) * 10, random.randrange(1, (height//10)) * 10]
         else:
             snake_pos.pop()
-            reward = -1  # Setting a negative reward for not eating the food
+            reward = -1  # Negative reward for not eating the food
             
         if snake_pos[0][0] < 0 or snake_pos[0][0] >= width or snake_pos[0][1] < 0 or snake_pos[0][1] >= height:
-            done = True
-            reward = -10  # Setting a negative reward for dying
+            reward = -10  # Negative reward for dying
+            return None, reward, True  # State is None, Game Over
             
         if snake_pos[0] in snake_pos[1:]:
-            done = True
-            reward = -10  # Setting a negative reward for dying
+            reward = -10  # Negative reward for dying
+            return None, reward, True  # State is None, Game Over
             
         screen.fill(white)
         for pos in snake_pos:
@@ -85,8 +87,13 @@ def play_game(q_learning=False, action=None):
         pygame.time.Clock().tick(30)
         
         if q_learning:
-            state = new_head  # The state is the position of the head of the snake
-            return state, reward, done
+            # Calculate state features: distance and angle to the food
+            dx = food_pos[0] - snake_pos[0][0]
+            dy = food_pos[1] - snake_pos[0][1]
+            angle = np.arctan2(dy, dx)
+            distance = np.sqrt(dx**2 + dy**2)
+            state = [distance, angle]
+            return state, reward, False  # State is distance and angle to the food, Game is not over
 
 if __name__ == "__main__":
     play_game()
