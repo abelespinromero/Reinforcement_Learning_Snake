@@ -25,6 +25,8 @@ class QLearner:
 
     def select_action(self, snake, food):
         state_str = self.state_to_str(snake, food)
+
+        # Epsilon greedy
         if random.uniform(0, 1) < self.epsilon:
             return random.choice(["UP", "DOWN", "LEFT", "RIGHT"])
         else:
