@@ -1,101 +1,124 @@
 
 import pygame
 import random
+import q_learner
+from constants import TEXT_COLOR, SNAKE_COLOR , FOOD_COLOR, BACKGROUND_COLOR, BLOCK_SIZE, DIS_WIDTH, DIS_HEIGHT, QVALUES_N, FRAMESPEED
 
-def play_game(q_learner=None):
-    pygame.init()
+
+pygame.init()
+
+# Game 
+
+def GameLoop(learner=None):
+    global dis
     
-    width, height = 400, 300
-    screen = pygame.display.set_mode((width, height))
-    white = (255, 255, 255)
-    green = (0, 255, 0)
-    red = (255, 0, 0)
-    black = (0, 0, 0)
+    dis = pygame.display.set_mode((DIS_WIDTH, DIS_HEIGHT))
+    pygame.display.set_caption('Snake')
+    clock = pygame.time.Clock()
+
+    # Starting position of snake
+    x1 = DIS_WIDTH / 2
+    y1 = DIS_HEIGHT / 2
+    x1_change = 0
+    y1_change = 0
+    snake_list = [(x1,y1)]
+    length_of_snake = 1
+
+    # Create first food
+    foodx = round(random.randrange(0, DIS_WIDTH - BLOCK_SIZE) / 10.0) * 10.0
+    foody = round(random.randrange(0, DIS_HEIGHT - BLOCK_SIZE) / 10.0) * 10.0
+
+    dead = False
+    reason = None
+    while not dead:
+        # Get action from agent
+        action = learner.act(snake_list, (foodx,foody))
+        if action == "left":
+            x1_change = -BLOCK_SIZE
+            y1_change = 0
+        elif action == "right":
+            x1_change = BLOCK_SIZE
+            y1_change = 0
+        elif action == "up":
+            y1_change = -BLOCK_SIZE
+            x1_change = 0
+        elif action == "down":
+            y1_change = BLOCK_SIZE
+            x1_change = 0
+
+        # Move snake
+        x1 += x1_change
+        y1 += y1_change
+        snake_head = (x1,y1)
+        snake_list.append(snake_head)
+
+        # Check if snake is off screen
+        if x1 >= DIS_WIDTH or x1 < 0 or y1 >= DIS_HEIGHT or y1 < 0:
+            reason = 'Screen'
+            dead = True
+
+        # Check if snake hit tail
+        if snake_head in snake_list[:-1]:
+            reason = 'Tail'
+            dead = True
+
+        # Check if snake ate food
+        if x1 == foodx and y1 == foody:
+            foodx = round(random.randrange(0, DIS_WIDTH - BLOCK_SIZE) / 10.0) * 10.0
+            foody = round(random.randrange(0, DIS_HEIGHT - BLOCK_SIZE) / 10.0) * 10.0
+            length_of_snake += 1
+
+        # Delete the last cell since we just added a head for moving, unless we ate a food
+        if len(snake_list) > length_of_snake:
+            del snake_list[0]
+
+        # Draw food, snake and update score
+        dis.fill(BACKGROUND_COLOR)
+        DrawFood(foodx, foody)
+        DrawSnake(snake_list)
+        DrawScore(length_of_snake - 1)
+        pygame.display.update()
+
+        # Update Q Table
+        learner.UpdateQValues(reason)
+        
+        # Next Frame
+        clock.tick(FRAMESPEED)
+
+    return length_of_snake - 1, reason
+
+def draw_rounded_rect(surface, color, rect, border_radius):
+    """
+    Draw a rectangle with rounded corners on a Pygame surface.
     
-    snake_pos = [[100, 50], [90, 50], [80, 50]]
-    snake_body = pygame.Surface((10, 10))
-    snake_body.fill(green)
-    direction = "RIGHT"
-    
-    food_pos = [random.randrange(1, (width//10)) * 10, random.randrange(1, (height//10)) * 10]
-    food = pygame.Surface((10, 10))
-    food.fill(red)
-    
-    score = 0
-    font = pygame.font.SysFont("comicsansms", 35)
-    
-    # Inicializar una variable fuera del bucle para almacenar la distancia anterior
-    previous_distance_to_food = None
+    Parameters:
+        surface (pygame.Surface): The surface to draw on.
+        color (tuple): RGB color tuple.
+        rect (tuple): The rectangle dimensions (x, y, width, height).
+        border_radius (int): The radius of the rounded corners.
+    """
+    x, y, width, height = rect
+    pygame.draw.rect(surface, color, (x + border_radius, y, width - 2 * border_radius, height))
+    pygame.draw.rect(surface, color, (x, y + border_radius, width, height - 2 * border_radius))
+    pygame.draw.circle(surface, color, (x + border_radius, y + border_radius), border_radius)
+    pygame.draw.circle(surface, color, (x + width - border_radius, y + border_radius), border_radius)
+    pygame.draw.circle(surface, color, (x + border_radius, y + height - border_radius), border_radius)
+    pygame.draw.circle(surface, color, (x + width - border_radius, y + height - border_radius), border_radius)
 
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                return
 
-        if q_learner:
-            direction = q_learner.select_action(snake_pos, food_pos, direction)
+def DrawFood(foodx, foody):
+    draw_rounded_rect(dis, FOOD_COLOR, [foodx, foody, BLOCK_SIZE, BLOCK_SIZE], 5)
+    draw_rounded_rect(dis, (0, 0, 0), [foodx + 2, foody + 2, BLOCK_SIZE - 4, BLOCK_SIZE - 4], 3)   
 
-        new_head = list(snake_pos[0])
-        
-        if direction == "UP":
-            new_head[1] -= 10
-        if direction == "DOWN":
-            new_head[1] += 10
-        if direction == "LEFT":
-            new_head[0] -= 10
-        if direction == "RIGHT":
-            new_head[0] += 10
+def DrawScore(score):
+    font = pygame.font.Font(None, 36)
+    value = font.render(f"Score: {score}", True, TEXT_COLOR)
+    dis.blit(value, [0, 0])
 
-        snake_pos.insert(0, new_head)
-        
-        reward = 0
+def DrawSnake(snake_list):
+    for x in snake_list:
+        draw_rounded_rect(dis, (0, 0, 0), [x[0] + 3, x[1] + 3, BLOCK_SIZE - 6, BLOCK_SIZE - 6], 5)
+        draw_rounded_rect(dis, SNAKE_COLOR, [x[0], x[1], BLOCK_SIZE, BLOCK_SIZE], 5)
 
-        # Calculate the new distance to the food        
-        new_distance_to_food = abs(snake_pos[0][0] - food_pos[0]) + abs(snake_pos[0][1] - food_pos[1])
 
-        # Check if the snake eats the food
-        if snake_pos[0] == food_pos:
-            score += 1
-            reward = 1
-            food_pos = [random.randrange(1, (width//10)) * 10, random.randrange(1, (height//10)) * 10]
-        else:
-            snake_pos.pop()
 
-            # Check if the snake is closer to the food than before (if exists)
-            if previous_distance_to_food is not None:
-                if new_distance_to_food < previous_distance_to_food:
-                    reward = 1  # Positive reward for moving closer to the food
-                else:
-                    reward = -1  # Negative reward for moving away from the food
-
-        # Actualiza la distancia anterior para el próximo ciclo
-        previous_distance_to_food = new_distance_to_food
-
-        # Check if the snake is out of bounds
-        if snake_pos[0][0] < 0 or snake_pos[0][0] >= width or snake_pos[0][1] < 0 or snake_pos[0][1] >= height:
-            reward = -1
-            if q_learner:
-                q_learner.update_q_values(old_snake=snake_pos[1:], old_food=food_pos, action=direction, reward=reward, new_snake=None, new_food=None, direction=direction)
-            return score
-        
-        # Check if the snake collides with itself            
-        if snake_pos[0] in snake_pos[1:]:
-            reward = -1
-            if q_learner:
-                q_learner.update_q_values(old_snake=snake_pos[1:], old_food=food_pos, action=direction, reward=reward, new_snake=None, new_food=None, direction=direction)
-            return score
-            
-        if q_learner:
-            q_learner.update_q_values(old_snake=snake_pos[1:], old_food=food_pos, action=direction, reward=reward, new_snake=snake_pos, new_food=food_pos, direction=direction)
-        
-        # Drawing logic
-        screen.fill(white)
-        for pos in snake_pos:
-            screen.blit(snake_body, pos)
-        screen.blit(food, food_pos)
-        score_text = font.render("Score: " + str(score), True, black)
-        screen.blit(score_text, [0, 0])
-        
-        pygame.display.flip()
-        pygame.time.Clock().tick(10)
