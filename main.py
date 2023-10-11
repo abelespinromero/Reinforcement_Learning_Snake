@@ -7,7 +7,7 @@ def main():
     q_learner = QLearner()
     scores = []
     
-    n_episodes = 1000
+    n_episodes = 10000
     for episode in range(0, n_episodes):
         print(f"Episode: {episode}")
         score = play_game(q_learner=q_learner)

@@ -98,4 +98,4 @@ def play_game(q_learner=None):
         screen.blit(score_text, [0, 0])
         
         pygame.display.flip()
-        pygame.time.Clock().tick(30)
+        pygame.time.Clock().tick(10)

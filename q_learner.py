@@ -5,9 +5,9 @@ import json
 class QLearner:
     def __init__(self):
         self.q_values = self.load_q_values()
-        self.epsilon = 0.1
-        self.alpha = 0.7
-        self.gamma = 0.9
+        self.epsilon = 0.1 # Valor pequeño -> explotación, Valor grande -> exploración
+        self.lr = 0.7 # Valor pequeño -> aprende lento, Valor grande -> aprende rapido (reacciona más rapido a las recompensas)
+        self.discount_factor = .5 # Factor de descuento; Valor pequeño -> Priorizar recompensas/decisiones inmediatas,  Valor grande -> Priorizar recompensas/decisiones a largo plazo
 
     def load_q_values(self):
         try:
@@ -42,7 +42,7 @@ class QLearner:
         old_q_value = self.q_values.get(old_state_str, {}).get(action, 0)
         max_new_q_value = 0 if new_state_str is None else max(self.q_values.get(new_state_str, {}).values(), default=0)
 
-        new_q_value = (1 - self.alpha) * old_q_value + self.alpha * (reward + self.gamma * max_new_q_value)
+        new_q_value = (1 - self.lr) * old_q_value + self.lr * (reward + self.discount_factor * max_new_q_value)
 
         if old_state_str not in self.q_values:
             self.q_values[old_state_str] = {}
